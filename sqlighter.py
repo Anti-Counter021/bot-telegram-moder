@@ -10,15 +10,15 @@ class SQLighter:
     def __init__(self, database):
         self.connection = sqlite3.connect(database)
         self.cursor = self.connection.cursor()
+        self.create_table()
+
+    def create_table(self):
+        pass
 
 
 class UserTable(SQLighter):
 
-    def __init__(self, database):
-        super().__init__(database)
-        self.create_users_table()
-
-    def create_users_table(self):
+    def create_table(self):
         table = """
                         CREATE TABLE IF NOT EXISTS users (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
