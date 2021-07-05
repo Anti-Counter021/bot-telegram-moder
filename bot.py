@@ -4,14 +4,64 @@ import logging
 
 from config import TOKEN, GROUP_ID
 from filters import IsAdminFilter
-from sqlighter import SQLighter
+from keyboards import kick_keyboard
+from sql.sqlighter import UserTable, VoteTable
 
 logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=TOKEN, parse_mode='HTML')
 dispatcher = Dispatcher(bot)
 dispatcher.filters_factory.bind(IsAdminFilter)
-db = SQLighter('members.db')
+db_user = UserTable('members.db')
+db_vote = VoteTable('members.db')
+
+KICK_MESSAGE_ID: int = 0
+
+
+# Vote for kick
+@dispatcher.message_handler(commands=['kick'])
+async def vote_for_kick(message: types.Message):
+    global KICK_MESSAGE_ID
+
+    if not message.reply_to_message:
+        await message.reply('Command need use with reply message!')
+        return
+
+    user_may_be_is_admin = await message.bot.get_chat_member(GROUP_ID, message.reply_to_message.from_user.id)
+    if user_may_be_is_admin.is_chat_admin():
+        await message.reply('Error give warning admin!')
+        return
+
+    await message.reply(
+        f'New vote for kick @{message.reply_to_message.from_user.username}, organized @{message.from_user.username}',
+        reply_markup=kick_keyboard,
+    )
+    KICK_MESSAGE_ID = message.message_id
+    kick_id = message.reply_to_message.from_user.id
+    user_id = message.from_user.id
+    if not db_user.exists(kick_id):
+        db_user.add_user(kick_id)
+    if not db_user.exists(user_id):
+        db_user.add_user(user_id)
+    kick = db_user.get_id(kick_id)
+    user = db_user.get_id(user_id)
+    db_vote.create_new_vote(user_id=user, message_id=KICK_MESSAGE_ID, kick_id=kick)
+
+
+# @dispatcher.callback_query_handler(lambda callback_data: callback_data.data)
+# async def callback(callback_query: types.CallbackQuery):
+#
+#     await bot.answer_callback_query(callback_query.id)
+#
+#     if callback_query.data == 'kick':
+#         db.update_count_vote(KICK_MESSAGE_ID)
+#         count_votes = db.get_count_votes(KICK_MESSAGE_ID)
+#         await bot.send_message(GROUP_ID, f'Votes for kick {count_votes}')
+#
+#         if count_votes >= 2:
+#             await bot.edit_message_reply_markup(
+#                 callback_query.message.chat.id, callback_query.message.message_id, reply_markup=None,
+#             )
 
 
 # New warning
@@ -29,8 +79,8 @@ async def add_new_warning(message: types.Message):
 
     user = message.reply_to_message.from_user
     user_id = user.id
-    db.add_new_warning(user_id)
-    count_warning = db.get_count_warnings(user_id)
+    db_user.add_new_warning(user_id)
+    count_warning = db_user.get_count_warnings(user_id)
     await message.bot.delete_message(GROUP_ID, message.message_id)
 
     if count_warning >= 3:
@@ -77,8 +127,8 @@ async def ban(message: types.Message):
 async def on_user_joined(message: types.Message):
     if message.content_type == 'new_chat_members':
         for member in message.new_chat_members:
-            db.add_user(member['id'])
-            db.add_new_warning(member['id'], 0)
+            db_user.add_user(member['id'])
+            db_user.add_new_warning(member['id'], 0)
     await message.delete()
 
 
