@@ -7,6 +7,9 @@ from filters import IsAdminFilter
 from keyboards import kick_keyboard
 from sql.sqlighter import UserTable, VoteTable
 
+assert GROUP_ID, 'No GROUP_ID'
+assert TOKEN, 'NO TOKEN'
+
 logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=TOKEN, parse_mode='HTML')
@@ -19,9 +22,11 @@ KICK_MESSAGE_ID: int = 0
 
 
 # rules, help
-@dispatcher.message_handler(commands=['chat'])
+
+@dispatcher.message_handler(commands=['chat'], is_admin=True)
 async def get_chat_id(message: types.Message):
-    await message.answer(message.chat.id)
+    assert message.chat.id != GROUP_ID, 'GROUP_ID != chat.id'
+    await message.answer(f'Chat id = {message.chat.id}')
 
 
 # Vote for kick
@@ -56,8 +61,15 @@ async def vote_for_kick(message: types.Message):
     if not db_user.exists(user_id):
         db_user.add_user(user_id)
 
+    assert db_user.exists(kick_id), 'Kick_id is not exists'
+    assert db_user.exists(user_id), 'User_id is not exists'
+
     kick = db_user.get_id(kick_id)
     user = db_user.get_id(user_id)
+
+    assert kick, 'Kick not id'
+    assert user, 'User not id'
+
     db_vote.create_new_vote(user_id=user, message_id=KICK_MESSAGE_ID, kick_id=kick)
 
 
@@ -73,7 +85,11 @@ async def callback(callback_query: types.CallbackQuery):
         if not db_user.exists(user_id):
             db_user.add_user(user_id)
 
+        assert db_user.exists(user_id), 'User_id is not exists'
+
         user = db_user.get_id(user_id)
+
+        assert user, 'User not id'
 
         if not db_vote.exists(user, KICK_MESSAGE_ID):
             if callback_query.data == 'kick':
@@ -166,6 +182,7 @@ async def on_user_joined(message: types.Message):
         for member in message.new_chat_members:
             db_user.add_user(member['id'])
             db_user.add_new_warning(member['id'], 0)
+            assert db_user.get_count_warnings(member.id) == 0, 'Member warning not is 0'
     await message.delete()
 
 
