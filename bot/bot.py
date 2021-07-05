@@ -18,10 +18,18 @@ db_vote = VoteTable('members.db')
 KICK_MESSAGE_ID: int = 0
 
 
+# cancel vote kick !!!
+# rules, help, chat_id
+
+
 # Vote for kick
 @dispatcher.message_handler(commands=['kick'])
 async def vote_for_kick(message: types.Message):
     global KICK_MESSAGE_ID
+
+    if KICK_MESSAGE_ID:
+        await message.reply('There is already a valid vote for the kick!')
+        return
 
     if not message.reply_to_message:
         await message.reply('Command need use with reply message!')
@@ -50,6 +58,7 @@ async def vote_for_kick(message: types.Message):
 
 @dispatcher.callback_query_handler(lambda callback_data: callback_data.data)
 async def callback(callback_query: types.CallbackQuery):
+    global KICK_MESSAGE_ID
 
     await bot.answer_callback_query(callback_query.id)
 
@@ -63,13 +72,14 @@ async def callback(callback_query: types.CallbackQuery):
         count_votes = db_vote.count_votes_for_kick(KICK_MESSAGE_ID)
         await bot.send_message(GROUP_ID, f'Votes for kick {count_votes}')
 
-        if count_votes >= 2:
+        if count_votes >= 1:
             await bot.edit_message_reply_markup(
                 callback_query.message.chat.id, callback_query.message.message_id, reply_markup=None,
             )
             kick = db_vote.get_kick_user_id(KICK_MESSAGE_ID)
             await bot.kick_chat_member(GROUP_ID, kick, revoke_messages=True)
             await bot.send_photo(GROUP_ID, 'https://airsofter.world/galleries/3857/5cb720e8783a1.jpg')
+            KICK_MESSAGE_ID = 0
 
 
 # New warning

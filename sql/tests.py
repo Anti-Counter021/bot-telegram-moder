@@ -57,6 +57,7 @@ class VoteTableTestCase(unittest.TestCase):
         self.assertEqual(self.db.exists(self.new_user, self.message), True)
         self.assertEqual(self.db.exists(self.kick, self.message), True)
         self.assertEqual(self.db.count_votes_for_kick(self.message), 2)
+        self.assertEqual(self.db.get_kick_user_id(self.message), self.kick_id)
 
 
 if __name__ == '__main__':
