@@ -90,7 +90,7 @@ class VoteTable(SQLighter):
         table_votes = """
                           CREATE TABLE IF NOT EXISTS votes (
                               id INTEGER PRIMARY KEY AUTOINCREMENT,
-                              user_id INTEGER NOT NULL UNIQUE,
+                              user_id INTEGER NOT NULL,
                               vote_id INTEGER NOT NULL,
                               FOREIGN KEY (vote_id) REFERENCES vote_kick (id),
                               FOREIGN KEY (user_id) REFERENCES users (id)
@@ -102,6 +102,33 @@ class VoteTable(SQLighter):
             logger.info('Table "vote_kick" has been created')
             self.cursor.execute(table_votes)
             logger.info('Table "votes" has been created')
+
+    def exists(self, user_id: int, message_id: int):
+
+        with self.connection:
+
+            vote_id: int = self.get_vote_id(message_id)
+            vote_exists = bool(
+                len(
+                    self.cursor.execute(
+                        "SELECT * FROM votes WHERE user_id = ? and vote_id = ?;",
+                        (user_id, vote_id)
+                    ).fetchall()
+                )
+            )
+            logger.info(f'Vote exists = {vote_exists}')
+            return vote_exists
+
+    def count_votes_for_kick(self, message_id: int):
+
+        with self.connection:
+
+            vote_id: int = self.get_vote_id(message_id)
+            count = int(
+                self.cursor.execute("SELECT count(id) FROM votes WHERE vote_id = ?;", (vote_id,)).fetchone()[0]
+            ) - 1
+            logger.info(f'Count = {count}')
+            return count
 
     def get_vote_id(self, message_id: int):
 
@@ -116,6 +143,7 @@ class VoteTable(SQLighter):
         with self.connection:
 
             vote_id: int = self.get_vote_id(message_id)
+            logger.info('Create user vote')
             return self.cursor.execute(
                 "INSERT INTO votes (user_id, vote_id) VALUES (?, ?);", (user_id, vote_id)
             )
@@ -124,21 +152,9 @@ class VoteTable(SQLighter):
 
         with self.connection:
 
+            logger.info('Create new vote for kick')
             self.cursor.execute(
                 "INSERT INTO vote_kick (kick_id, count_votes, message_id) VALUES (?, ?, ?);", (kick_id, 1, message_id)
             )
-            return self.create_votes_user(user_id, message_id)
-
-
-if __name__ == '__main__':
-    sqLighter = UserTable('sql.db')
-    sqLighter.add_user(5)
-    sqLighter.add_user(6)
-    sqLighter.add_user(7)
-    sqLighter.add_new_warning(5)
-    voteLighter = VoteTable('sql.db')
-    user = sqLighter.get_id(5)
-    kick = sqLighter.get_id(6)
-    voteLighter.create_new_vote(user, 2, kick)
-    new_user_vote = sqLighter.get_id(7)
-    voteLighter.create_votes_user(new_user_vote, 2)
+            self.create_votes_user(user_id, message_id)
+            return self.create_votes_user(kick_id, message_id)
