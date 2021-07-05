@@ -18,8 +18,10 @@ db_vote = VoteTable('members.db')
 KICK_MESSAGE_ID: int = 0
 
 
-# cancel vote kick !!!
-# rules, help, chat_id
+# rules, help
+@dispatcher.message_handler(commands=['chat'])
+async def get_chat_id(message: types.Message):
+    await message.answer(message.chat.id)
 
 
 # Vote for kick
@@ -44,13 +46,16 @@ async def vote_for_kick(message: types.Message):
         f'New vote for kick @{message.reply_to_message.from_user.username}, organized @{message.from_user.username}',
         reply_markup=kick_keyboard,
     )
+
     KICK_MESSAGE_ID = message.message_id
     kick_id = message.reply_to_message.from_user.id
     user_id = message.from_user.id
+
     if not db_user.exists(kick_id):
         db_user.add_user(kick_id)
     if not db_user.exists(user_id):
         db_user.add_user(user_id)
+
     kick = db_user.get_id(kick_id)
     user = db_user.get_id(user_id)
     db_vote.create_new_vote(user_id=user, message_id=KICK_MESSAGE_ID, kick_id=kick)
@@ -62,23 +67,37 @@ async def callback(callback_query: types.CallbackQuery):
 
     await bot.answer_callback_query(callback_query.id)
 
-    if callback_query.data == 'kick':
+    if callback_query.data in ('kick', 'leave'):
         user_id = callback_query.from_user.id
+
         if not db_user.exists(user_id):
             db_user.add_user(user_id)
-        user = db_user.get_id(user_id)
-        if not db_vote.exists(user, KICK_MESSAGE_ID):
-            db_vote.create_votes_user(user_id=user, message_id=KICK_MESSAGE_ID)
-        count_votes = db_vote.count_votes_for_kick(KICK_MESSAGE_ID)
-        await bot.send_message(GROUP_ID, f'Votes for kick {count_votes}')
 
-        if count_votes >= 1:
+        user = db_user.get_id(user_id)
+
+        if not db_vote.exists(user, KICK_MESSAGE_ID):
+            if callback_query.data == 'kick':
+                db_vote.create_votes_user(user_id=user, message_id=KICK_MESSAGE_ID)
+            elif callback_query.data == 'leave':
+                db_vote.create_votes_user(user_id=user, message_id=KICK_MESSAGE_ID, act=False)
+
+        count_votes_kick = db_vote.count_votes_for_kick(KICK_MESSAGE_ID)
+        count_votes_leave = db_vote.count_votes_for_kick(KICK_MESSAGE_ID, False)
+        await bot.send_message(GROUP_ID, f'Votes for kick {count_votes_kick} and no kick is {count_votes_leave}')
+
+        if count_votes_kick >= 2:
             await bot.edit_message_reply_markup(
                 callback_query.message.chat.id, callback_query.message.message_id, reply_markup=None,
             )
             kick = db_vote.get_kick_user_id(KICK_MESSAGE_ID)
             await bot.kick_chat_member(GROUP_ID, kick, revoke_messages=True)
             await bot.send_photo(GROUP_ID, 'https://airsofter.world/galleries/3857/5cb720e8783a1.jpg')
+            KICK_MESSAGE_ID = 0
+        elif count_votes_leave >= 2:
+            await bot.edit_message_reply_markup(
+                callback_query.message.chat.id, callback_query.message.message_id, reply_markup=None,
+            )
+            await bot.send_message(GROUP_ID, 'You lucky man!')
             KICK_MESSAGE_ID = 0
 
 

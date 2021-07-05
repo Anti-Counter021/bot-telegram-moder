@@ -92,6 +92,7 @@ class VoteTable(SQLighter):
                               id INTEGER PRIMARY KEY AUTOINCREMENT,
                               user_id INTEGER NOT NULL,
                               vote_id INTEGER NOT NULL,
+                              act BOOLEAN DEFAULT TRUE,
                               FOREIGN KEY (vote_id) REFERENCES vote_kick (id),
                               FOREIGN KEY (user_id) REFERENCES users (id)
                           );
@@ -130,14 +131,17 @@ class VoteTable(SQLighter):
             logger.info(f'Vote exists = {vote_exists}')
             return vote_exists
 
-    def count_votes_for_kick(self, message_id: int):
+    def count_votes_for_kick(self, message_id: int, act: bool = True):
 
         with self.connection:
 
             vote_id: int = self.get_vote_id(message_id)
             count = int(
-                self.cursor.execute("SELECT count(id) FROM votes WHERE vote_id = ?;", (vote_id,)).fetchone()[0]
-            ) - 1
+                self.cursor.execute(
+                    "SELECT count(id) FROM votes WHERE vote_id = ? and act = ?;",
+                    (vote_id, act),
+                ).fetchone()[0]
+            )
             logger.info(f'Count = {count}')
             return count
 
@@ -149,14 +153,15 @@ class VoteTable(SQLighter):
                 "SELECT id FROM vote_kick WHERE message_id = ?;", (message_id,)
             ).fetchone()[0]
 
-    def create_votes_user(self, user_id: int, message_id: int):
+    def create_votes_user(self, user_id: int, message_id: int, act: bool = True):
 
         with self.connection:
 
             vote_id: int = self.get_vote_id(message_id)
             logger.info('Create user vote')
             return self.cursor.execute(
-                "INSERT INTO votes (user_id, vote_id) VALUES (?, ?);", (user_id, vote_id)
+                "INSERT INTO votes (user_id, vote_id, act) VALUES (?, ?, ?);",
+                (user_id, vote_id, act)
             )
 
     def create_new_vote(self, user_id: int, message_id: int, kick_id: int):
@@ -168,4 +173,4 @@ class VoteTable(SQLighter):
                 "INSERT INTO vote_kick (kick_id, count_votes, message_id) VALUES (?, ?, ?);", (kick_id, 1, message_id)
             )
             self.create_votes_user(user_id, message_id)
-            return self.create_votes_user(kick_id, message_id)
+            return self.create_votes_user(kick_id, message_id, False)
