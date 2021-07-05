@@ -103,6 +103,17 @@ class VoteTable(SQLighter):
             self.cursor.execute(table_votes)
             logger.info('Table "votes" has been created')
 
+    def get_kick_user_id(self, message_id: int):
+
+        with self.connection:
+
+            kick = int(self.cursor.execute(
+                "SELECT kick_id FROM vote_kick WHERE message_id = ?;", (message_id,)
+            ).fetchone()[0])
+            return int(self.cursor.execute(
+                "SELECT user_id FROM users WHERE id = ?", (kick,)
+            ).fetchone()[0])
+
     def exists(self, user_id: int, message_id: int):
 
         with self.connection:

@@ -48,20 +48,28 @@ async def vote_for_kick(message: types.Message):
     db_vote.create_new_vote(user_id=user, message_id=KICK_MESSAGE_ID, kick_id=kick)
 
 
-# @dispatcher.callback_query_handler(lambda callback_data: callback_data.data)
-# async def callback(callback_query: types.CallbackQuery):
-#
-#     await bot.answer_callback_query(callback_query.id)
-#
-#     if callback_query.data == 'kick':
-#         db.update_count_vote(KICK_MESSAGE_ID)
-#         count_votes = db.get_count_votes(KICK_MESSAGE_ID)
-#         await bot.send_message(GROUP_ID, f'Votes for kick {count_votes}')
-#
-#         if count_votes >= 2:
-#             await bot.edit_message_reply_markup(
-#                 callback_query.message.chat.id, callback_query.message.message_id, reply_markup=None,
-#             )
+@dispatcher.callback_query_handler(lambda callback_data: callback_data.data)
+async def callback(callback_query: types.CallbackQuery):
+
+    await bot.answer_callback_query(callback_query.id)
+
+    if callback_query.data == 'kick':
+        user_id = callback_query.from_user.id
+        if not db_user.exists(user_id):
+            db_user.add_user(user_id)
+        user = db_user.get_id(user_id)
+        if not db_vote.exists(user, KICK_MESSAGE_ID):
+            db_vote.create_votes_user(user_id=user, message_id=KICK_MESSAGE_ID)
+        count_votes = db_vote.count_votes_for_kick(KICK_MESSAGE_ID)
+        await bot.send_message(GROUP_ID, f'Votes for kick {count_votes}')
+
+        if count_votes >= 2:
+            await bot.edit_message_reply_markup(
+                callback_query.message.chat.id, callback_query.message.message_id, reply_markup=None,
+            )
+            kick = db_vote.get_kick_user_id(KICK_MESSAGE_ID)
+            await bot.kick_chat_member(GROUP_ID, kick, revoke_messages=True)
+            await bot.send_photo(GROUP_ID, 'https://airsofter.world/galleries/3857/5cb720e8783a1.jpg')
 
 
 # New warning
