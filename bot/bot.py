@@ -1,9 +1,14 @@
 from aiogram import Bot, Dispatcher, types, executor
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher import FSMContext
 
 import logging
 
+from random import randint
+
 from config import TOKEN, GROUP_ID
 from filters import IsAdminFilter
+from forms import Captcha
 from keyboards import kick_keyboard
 from sql.sqlighter import UserTable, VoteTable
 
@@ -13,7 +18,8 @@ assert TOKEN, 'NO TOKEN'
 logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=TOKEN, parse_mode='HTML')
-dispatcher = Dispatcher(bot)
+storage = MemoryStorage()
+dispatcher = Dispatcher(bot, storage=storage)
 dispatcher.filters_factory.bind(IsAdminFilter)
 db_user = UserTable('members.db')
 db_vote = VoteTable('members.db')
@@ -21,7 +27,36 @@ db_vote = VoteTable('members.db')
 KICK_MESSAGE_ID: int = 0
 
 
-# rules, help
+@dispatcher.message_handler(commands=['captcha'])
+async def captcha(message: types.Message, state: FSMContext):
+    x = randint(1, 9)
+    y = randint(1, 9)
+    async with state.proxy() as data:
+        data['user_id'] = message.from_user.id
+        data['x'] = x
+        data['y'] = y
+    await message.reply(f'Please input {x} + {y}. @{message.from_user.username}')
+    await Captcha.captcha.set()
+
+
+@dispatcher.message_handler(state=Captcha.captcha)
+async def process_captcha(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        x = data['x']
+        y = data['y']
+        try:
+            data['captcha'] = int(message.text)
+            assert data['user_id'] == message.from_user.id, 'User.id != message.from_user.id'
+        except ValueError:
+            data['captcha'] = ''
+        finally:
+            if x + y != data['captcha']:
+                await bot.kick_chat_member(message.chat.id, message.from_user.id, revoke_messages=True)
+            else:
+                await message.answer('Good!')
+    await state.finish()
+
+
 @dispatcher.message_handler(commands=['help'])
 async def help_bot(message: types.Message):
     """ Help """
