@@ -99,7 +99,7 @@ async def vote_for_kick(message: types.Message):
 
     user_may_be_is_admin = await message.bot.get_chat_member(GROUP_ID, message.reply_to_message.from_user.id)
     if user_may_be_is_admin.is_chat_admin():
-        await message.reply('Error give warning admin!')
+        await message.reply('Error kick admin!')
         return
 
     await message.reply(
