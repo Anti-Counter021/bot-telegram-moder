@@ -63,6 +63,7 @@ async def help_bot(message: types.Message):
     await message.answer(
         'My commands:\n'
         '\t\t\t\t<strong>/info</strong> - Information about me\n'
+        '\t\t\t\t<strong>/captcha</strong> - Captcha\n'
         '\t\t\t\t<strong>/link</strong> - Invite link\n'
         '\t\t\t\t<strong>/kick</strong> - Vote for kick. Need reply message\n'
         '\t\t\t\t<strong>/chat</strong> - Id chat - only admin\n'

@@ -20,3 +20,4 @@ Installing:
         /chat - Chat Id
         /warning - Warning
         /ban - Ban
+        /captcha - Captcha
