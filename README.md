@@ -8,6 +8,15 @@ Installing:
     
     run file "bot.py"
     
-    in directory bot create file "config.env":
+    create file "config.env":
         TOKEN=<your-token-for-telegram-bot>
         GROUP_ID=<your-group-id>
+
+    Commands:
+        /help - Help
+        /info - Info
+        /link - Invite link
+        /kick - Vote for kick
+        /chat - Chat Id
+        /warning - Warning
+        /ban - Ban
